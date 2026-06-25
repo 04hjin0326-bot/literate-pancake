@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>포물선 미사일: 이차함수 평행이동</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10131a;
+      --panel: #171b24;
+      --panel-2: #202737;
+      --line: #334052;
+      --text: #edf3ff;
+      --muted: #a9b5c7;
+      --accent: #46d6b5;
+      --accent-2: #ffcf5b;
+      --danger: #ff5d6c;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at top left, rgba(70, 214, 181, 0.22), transparent 32rem),
+        linear-gradient(135deg, #0d1118 0%, #151927 46%, #231b28 100%);
+      color: var(--text);
+      font-family: "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 28px));
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 18px 0 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .arena {
+      min-height: 690px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: rgba(10, 13, 19, 0.68);
+      box-shadow: 0 22px 60px var(--shadow);
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      background: linear-gradient(90deg, rgba(35, 43, 61, 0.94), rgba(27, 28, 42, 0.94));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.2rem, 2.4vw, 1.9rem);
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .badge {
+      min-width: 92px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.06);
+      text-align: center;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .badge span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .stage-wrap {
+      position: relative;
+      min-height: 0;
+      background:
+        linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px),
+        #111720;
+      background-size: 24px 24px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .toast {
+      position: absolute;
+      left: 16px;
+      bottom: 16px;
+      max-width: min(520px, calc(100% - 32px));
+      padding: 11px 13px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 8px;
+      background: rgba(14, 18, 28, 0.86);
+      color: var(--text);
+      font-weight: 700;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 180ms ease, transform 180ms ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .side {
+      min-height: 690px;
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 12px;
+    }
+
+    .panel {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      background: rgba(23, 27, 36, 0.92);
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+      overflow: hidden;
+    }
+
+    .panel h2 {
+      margin: 0;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 1rem;
+      letter-spacing: 0;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .formula {
+      padding: 13px 14px;
+      border-radius: 8px;
+      background: #101621;
+      color: var(--accent-2);
+      font-size: clamp(1.02rem, 2vw, 1.2rem);
+      font-weight: 900;
+      line-height: 1.35;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    input {
+      width: 100%;
+      min-width: 0;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 7px;
+      background: #101621;
+      color: var(--text);
+      padding: 0 10px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(70, 214, 181, 0.16);
+    }
+
+    button {
+      width: 100%;
+      height: 48px;
+      border: 0;
+      border-radius: 7px;
+      color: #07100e;
+      background: linear-gradient(180deg, #70f1d1, #36c9a8);
+      font-size: 1rem;
+      font-weight: 950;
+      cursor: pointer;
+      box-shadow: 0 12px 22px rgba(70, 214, 181, 0.18);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      filter: grayscale(0.6);
+      opacity: 0.56;
+      box-shadow: none;
+    }
+
+    .danger-button {
+      margin-top: 9px;
+      color: #fff;
+      background: linear-gradient(180deg, #ff7b87, #e74355);
+      box-shadow: 0 12px 22px rgba(255, 93, 108, 0.16);
+    }
+
+    .enemy-card {
+      display: grid;
+      gap: 12px;
+    }
+
+    .enemy-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .enemy-position {
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 950;
+    }
+
+    .hp-shell {
+      height: 18px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 99px;
+      background: #0f141d;
+    }
+
+    .hp-fill {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, #ffcf5b, #ff6b6b);
+      transition: width 240ms ease;
+    }
+
+    .log {
+      min-height: 164px;
+      max-height: 220px;
+      overflow: auto;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding-right: 4px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+    }
+
+    .log strong {
+      color: var(--text);
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
+    .statusline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 800;
+    }
+
+    .statusline b {
+      color: var(--accent-2);
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .arena,
+      .side {
+        min-height: auto;
+      }
+
+      .stage-wrap {
+        height: 62vh;
+        min-height: 430px;
+      }
+
+      .side {
+        grid-template-rows: auto;
+      }
+    }
+
+    @media (max-width: 560px) {
+      main {
+        width: min(100vw - 16px, 1180px);
+        padding-top: 8px;
+        gap: 10px;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .topbar h1 {
+        grid-column: 1 / -1;
+      }
+
+      .badge {
+        min-width: 0;
+      }
+
+      .control-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="arena" aria-label="게임 화면">
+      <div class="topbar">
+        <h1>포물선 미사일</h1>
+        <div class="badge"><span>남은 시간</span><b id="timeLeft">90</b>초</div>
+        <div class="badge"><span>격파</span><b id="score">0</b></div>
+      </div>
+      <div class="stage-wrap">
+        <canvas id="gameCanvas" aria-label="좌표평면과 포물선 미사일 게임 화면"></canvas>
+        <div class="toast" id="toast"></div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel">
+        <h2>함수식 입력</h2>
+        <div class="panel-body">
+          <div class="formula" id="formula">y = -(x - 0)² + 6</div>
+          <div class="control-grid">
+            <label>
+              p 값
+              <input id="pInput" type="number" inputmode="decimal" value="0" min="-10" max="10" step="1" />
+            </label>
+            <label>
+              q 값
+              <input id="qInput" type="number" inputmode="decimal" value="6" min="0" max="18" step="1" />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>적 상태</h2>
+        <div class="panel-body enemy-card">
+          <div class="enemy-row">
+            <span>위치</span>
+            <span class="enemy-position" id="enemyPosition">(?, ?)</span>
+          </div>
+          <div class="hp-shell" aria-label="적 체력">
+            <div class="hp-fill" id="hpFill"></div>
+          </div>
+          <div class="enemy-row">
+            <span>체력</span>
+            <span class="enemy-position"><b id="enemyHp">0</b> / <b id="enemyMaxHp">0</b></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>전투 기록</h2>
+        <div class="panel-body">
+          <div class="log" id="battleLog"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-body">
+          <button id="fireButton" type="button">발사</button>
+          <button id="restartButton" class="danger-button" type="button">다시 시작</button>
+          <p class="hint">
+            그래프는 입력과 동시에 움직입니다. p는 좌우 이동, q는 위아래 이동을 바꿉니다.
+            데미지가 적 체력보다 크면 공격이 과충전되어 막힙니다.
+          </p>
+        </div>
+        <div class="statusline">
+          <span>기본 그래프</span>
+          <b>y = -x²</b>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const pInput = document.getElementById("pInput");
+    const qInput = document.getElementById("qInput");
+    const formulaEl = document.getElementById("formula");
+    const fireButton = document.getElementById("fireButton");
+    const restartButton = document.getElementById("restartButton");
+    const timeLeftEl = document.getElementById("timeLeft");
+    const scoreEl = document.getElementById("score");
+    const enemyPositionEl = document.getElementById("enemyPosition");
+    const enemyHpEl = document.getElementById("enemyHp");
+    const enemyMaxHpEl = document.getElementById("enemyMaxHp");
+    const hpFill = document.getElementById("hpFill");
+    const battleLog = document.getElementById("battleLog");
+    const toast = document.getElementById("toast");
+
+    const world = {
+      minX: -10,
+      maxX: 10,
+      minY: -3,
+      maxY: 18,
+      pad: 42
+    };
+
+    const state = {
+      p: 0,
+      q: 6,
+      enemy: null,
+      missile: null,
+      score: 0,
+      timeLeft: 90,
+      playing: true,
+      lastTime: performance.now(),
+      toastTimer: 0
+    };
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function readInputs() {
+      const p = Number.parseFloat(pInput.value);
+      const q = Number.parseFloat(qInput.value);
+      state.p = Number.isFinite(p) ? clamp(p, -10, 10) : 0;
+      state.q = Number.isFinite(q) ? clamp(q, 0, 18) : 0;
+      formulaEl.textContent = `y = -(x - ${formatNum(state.p)})² + ${formatNum(state.q)}`;
+    }
+
+    function formatNum(value) {
+      return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
+    }
+
+    function toScreenX(x) {
+      const w = canvas.width - world.pad * 2;
+      return world.pad + ((x - world.minX) / (world.maxX - world.minX)) * w;
+    }
+
+    function toScreenY(y) {
+      const h = canvas.height - world.pad * 2;
+      return canvas.height - world.pad - ((y - world.minY) / (world.maxY - world.minY)) * h;
+    }
+
+    function curveY(x, p = state.p, q = state.q) {
+      return -Math.pow(x - p, 2) + q;
+    }
+
+    function flightDamage(q = state.q) {
+      if (q <= 0) return 0;
+      return Math.round(2 * Math.sqrt(q) * 10);
+    }
+
+    function spawnEnemy() {
+      const p = randomInt(-6, 6);
+      const qChoices = [4, 9, 16];
+      const q = qChoices[randomInt(0, qChoices.length - 1)];
+      const offsetOptions = [-3, -2, -1, 0, 1, 2, 3];
+      let dx = offsetOptions[randomInt(0, offsetOptions.length - 1)];
+      while (q - dx * dx < 1) {
+        dx = offsetOptions[randomInt(0, offsetOptions.length - 1)];
+      }
+      const x = clamp(p + dx, -8, 8);
+      const y = curveY(x, p, q);
+      const recommendedDamage = flightDamage(q);
+      const hp = Math.ceil(recommendedDamage / 10) * 10;
+
+      state.enemy = {
+        x,
+        y,
+        hp,
+        maxHp: hp,
+        blink: 0
+      };
+      updateEnemyUi();
+      log(`<strong>새 적 출현!</strong> 좌표 ${pointText(state.enemy)}에 나타났습니다.`);
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function pointText(point) {
+      return `(${point.x}, ${point.y})`;
+    }
+
+    function updateEnemyUi() {
+      const enemy = state.enemy;
+      enemyPositionEl.textContent = pointText(enemy);
+      enemyHpEl.textContent = Math.max(0, Math.round(enemy.hp));
+      enemyMaxHpEl.textContent = enemy.maxHp;
+      hpFill.style.width = `${clamp((enemy.hp / enemy.maxHp) * 100, 0, 100)}%`;
+    }
+
+    function log(message) {
+      const item = document.createElement("div");
+      item.innerHTML = message;
+      battleLog.prepend(item);
+      while (battleLog.children.length > 7) battleLog.lastElementChild.remove();
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+    }
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.floor(rect.width);
+      canvas.height = Math.floor(rect.height);
+    }
+
+    function drawGrid() {
+      const sx0 = toScreenX(world.minX);
+      const sx1 = toScreenX(world.maxX);
+      const sy0 = toScreenY(world.minY);
+      const sy1 = toScreenY(world.maxY);
+
+      ctx.save();
+      ctx.lineWidth = 1;
+      ctx.font = "12px Segoe UI, Malgun Gothic, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+
+      for (let x = world.minX; x <= world.maxX; x++) {
+        const sx = toScreenX(x);
+        ctx.strokeStyle = x === 0 ? "rgba(237, 243, 255, 0.68)" : "rgba(237, 243, 255, 0.12)";
+        ctx.beginPath();
+        ctx.moveTo(sx, sy0);
+        ctx.lineTo(sx, sy1);
+        ctx.stroke();
+        if (x !== 0) {
+          ctx.fillStyle = "rgba(237, 243, 255, 0.62)";
+          ctx.fillText(String(x), sx, toScreenY(0) + 7);
+        }
+      }
+
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let y = world.minY; y <= world.maxY; y++) {
+        const sy = toScreenY(y);
+        ctx.strokeStyle = y === 0 ? "rgba(237, 243, 255, 0.72)" : "rgba(237, 243, 255, 0.12)";
+        ctx.beginPath();
+        ctx.moveTo(sx0, sy);
+        ctx.lineTo(sx1, sy);
+        ctx.stroke();
+        if (y !== 0) {
+          ctx.fillStyle = "rgba(237, 243, 255, 0.62)";
+          ctx.fillText(String(y), toScreenX(0) - 7, sy);
+        }
+      }
+
+      ctx.fillStyle = "rgba(237, 243, 255, 0.82)";
+      ctx.textAlign = "left";
+      ctx.fillText("x", sx1 - 12, toScreenY(0) + 12);
+      ctx.textAlign = "right";
+      ctx.fillText("y", toScreenX(0) - 10, sy1 + 10);
+      ctx.restore();
+    }
+
+    function drawCurve() {
+      ctx.save();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#46d6b5";
+      ctx.shadowColor = "rgba(70, 214, 181, 0.65)";
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      let started = false;
+      for (let x = world.minX; x <= world.maxX; x += 0.04) {
+        const y = curveY(x);
+        const sx = toScreenX(x);
+        const sy = toScreenY(y);
+        if (!started) {
+          ctx.moveTo(sx, sy);
+          started = true;
+        } else {
+          ctx.lineTo(sx, sy);
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      const vertexX = toScreenX(state.p);
+      const vertexY = toScreenY(state.q);
+      ctx.fillStyle = "#ffcf5b";
+      ctx.strokeStyle = "#111720";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(vertexX, vertexY, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawEnemy(dt) {
+      if (!state.enemy) return;
+      const enemy = state.enemy;
+      enemy.blink = Math.max(0, enemy.blink - dt);
+      const sx = toScreenX(enemy.x);
+      const sy = toScreenY(enemy.y);
+      const pulse = Math.sin(performance.now() / 140) * 2;
+      const hitFlash = enemy.blink > 0;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.scale(0.35, 0.35);
+      ctx.shadowColor = hitFlash ? "rgba(255, 255, 255, 0.85)" : "rgba(255, 56, 84, 0.75)";
+      ctx.shadowBlur = 8;
+
+      ctx.fillStyle = hitFlash ? "#ffffff" : "#5d1420";
+      ctx.strokeStyle = "#ff7b89";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(0, -23 + pulse);
+      ctx.bezierCurveTo(21, -20, 25, 3, 17, 18);
+      ctx.bezierCurveTo(9, 30, -9, 30, -17, 18);
+      ctx.bezierCurveTo(-25, 3, -21, -20, 0, -23 + pulse);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = hitFlash ? "#fff3f5" : "#2a0810";
+      ctx.beginPath();
+      ctx.moveTo(-12, -18);
+      ctx.lineTo(-30, -30);
+      ctx.lineTo(-20, -5);
+      ctx.closePath();
+      ctx.moveTo(12, -18);
+      ctx.lineTo(30, -30);
+      ctx.lineTo(20, -5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = "#111720";
+      ctx.beginPath();
+      ctx.ellipse(0, 12, 11, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffcf5b";
+      ctx.strokeStyle = "#171b24";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(-8, -3, 6, 4, -0.25, 0, Math.PI * 2);
+      ctx.ellipse(8, -3, 6, 4, 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#171b24";
+      ctx.beginPath();
+      ctx.arc(-8, -3, 2, 0, Math.PI * 2);
+      ctx.arc(8, -3, 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "#ffd4d8";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-10, 10);
+      ctx.lineTo(-4, 16);
+      ctx.lineTo(0, 10);
+      ctx.lineTo(4, 16);
+      ctx.lineTo(10, 10);
+      ctx.stroke();
+
+      ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.font = "bold 24px Segoe UI, Malgun Gothic, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(pointText(enemy), 0, -54);
+      ctx.restore();
+    }
+
+    function drawMissile() {
+      if (!state.missile) return;
+      const m = state.missile;
+      const sx = toScreenX(m.x);
+      const sy = toScreenY(m.y);
+      const tailX = toScreenX(m.prevX);
+      const tailY = toScreenY(m.prevY);
+
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 207, 91, 0.72)";
+      ctx.lineWidth = 5;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(tailX, tailY);
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
+
+      ctx.fillStyle = "#ffcf5b";
+      ctx.strokeStyle = "#fff3bf";
+      ctx.lineWidth = 2;
+      ctx.shadowColor = "rgba(255, 207, 91, 0.8)";
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function fire() {
+      if (!state.playing || state.missile) return;
+      readInputs();
+      if (state.q <= 0) {
+        showToast("q가 0보다 커야 미사일이 공중으로 날아갑니다.");
+        return;
+      }
+      const root = Math.sqrt(state.q);
+      state.missile = {
+        p: state.p,
+        q: state.q,
+        x: state.p - root,
+        y: 0,
+        prevX: state.p - root,
+        prevY: 0,
+        endX: state.p + root,
+        speed: 6.4
+      };
+      showToast("발사!");
+    }
+
+    function updateMissile(dt) {
+      if (!state.missile) return;
+      const m = state.missile;
+      m.prevX = m.x;
+      m.prevY = m.y;
+      m.x += m.speed * dt;
+      m.y = -Math.pow(m.x - m.p, 2) + m.q;
+
+      const enemy = state.enemy;
+      const hitDistance = Math.hypot(m.x - enemy.x, m.y - enemy.y);
+      if (hitDistance < 0.36) {
+        resolveHit();
+        state.missile = null;
+        return;
+      }
+
+      if (m.x > m.endX || m.y < -0.2) {
+        state.missile = null;
+        log("미사일이 빗나갔습니다. p와 q를 다시 조정해 보세요.");
+        showToast("빗나감");
+      }
+    }
+
+    function resolveHit() {
+      const damage = flightDamage(state.q);
+      const enemy = state.enemy;
+      enemy.blink = 0.5;
+
+      if (damage > enemy.hp) {
+        log("<strong>과충전!</strong> 미사일이 너무 강해서 방어막에 튕겼습니다.");
+        showToast("과충전으로 무효");
+        return;
+      }
+
+      enemy.hp = Math.max(0, enemy.hp - damage);
+      updateEnemyUi();
+
+      if (enemy.hp <= 0) {
+        state.score += 1;
+        scoreEl.textContent = state.score;
+        log("<strong>격파 성공!</strong> 다음 적이 나타납니다.");
+        showToast("격파 성공");
+        setTimeout(() => {
+          if (state.playing) spawnEnemy();
+        }, 420);
+      } else {
+        log("<strong>명중!</strong> 적의 체력이 줄었습니다.");
+        showToast("명중");
+      }
+    }
+
+    function updateTimer(dt) {
+      if (!state.playing) return;
+      state.timeLeft = Math.max(0, state.timeLeft - dt);
+      timeLeftEl.textContent = Math.ceil(state.timeLeft);
+      if (state.timeLeft <= 0) {
+        state.playing = false;
+        fireButton.disabled = true;
+        log(`<strong>시간 종료!</strong> 최종 격파 수는 ${state.score}입니다.`);
+        showToast("시간 종료");
+      }
+    }
+
+    function restart() {
+      state.score = 0;
+      state.timeLeft = 90;
+      state.playing = true;
+      state.missile = null;
+      battleLog.innerHTML = "";
+      fireButton.disabled = false;
+      scoreEl.textContent = "0";
+      timeLeftEl.textContent = "90";
+      pInput.value = "0";
+      qInput.value = "6";
+      readInputs();
+      spawnEnemy();
+      showToast("새 게임 시작");
+    }
+
+    function frame(now) {
+      const dt = Math.min(0.033, (now - state.lastTime) / 1000);
+      state.lastTime = now;
+      readInputs();
+      updateTimer(dt);
+      updateMissile(dt);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawCurve();
+      drawEnemy(dt);
+      drawMissile();
+      requestAnimationFrame(frame);
+    }
+
+    pInput.addEventListener("input", readInputs);
+    qInput.addEventListener("input", readInputs);
+    fireButton.addEventListener("click", fire);
+    restartButton.addEventListener("click", restart);
+    window.addEventListener("resize", resizeCanvas);
+
+    resizeCanvas();
+    restart();
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
